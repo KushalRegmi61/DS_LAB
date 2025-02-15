@@ -1,0 +1,132 @@
+#include<graphics.h>
+#include<math.h>
+#include<stdio.h>
+typedef struct {
+    int x, y, z;
+} Point3D;
+Point3D original[]={
+    {100, 100, 100}, {150, 100, 100}, {150, 160, 100}, {100, 160, 100}, // Front face
+    {100, 100, 170}, {150, 100, 170}, {150, 160, 170}, {100, 160, 170}  // Back face
+};
+void project(Point3D p, int *x, int *y) {
+    *x=(p.x-p.z)*0.7071;
+    *y=(p.y-p.z*0.4082);
+    *x += 200;
+    *y += 150;
+}
+void drawCuboid(Point3D points[], int color) {
+    int i, x[8], y[8];
+    for (i=0; i<8; i++) 
+        project(points[i], &x[i], &y[i]);
+    setcolor(color);
+    for (i=0; i<4; i++) 
+        line(x[i], y[i], x[(i+1)%4], y[(i+1)%4]);
+    for (i=4; i<8; i++) 
+        line(x[i], y[i], x[4+(i+1)%4], y[4+(i+1)%4]);
+    for (i=0; i<4; i++) 
+        line(x[i], y[i], x[i+4], y[i+4]);
+}
+void applyTransform(Point3D *p, float matrix[4][4]) {
+    float x=p->x, y=p->y, z=p->z;
+    p->x=matrix[0][0]*x+matrix[0][1]*y+matrix[0][2]*z+matrix[0][3];
+    p->y=matrix[1][0]*x+matrix[1][1]*y+matrix[1][2]*z+matrix[1][3];
+    p->z=matrix[2][0]*x+matrix[2][1]*y+matrix[2][2]*z+matrix[2][3];
+}
+void createTransform(int choice, float matrix[4][4]) {
+    switch (choice) {
+        case 1: { 
+            float tx, ty, tz;
+            printf("Enter translation factors (tx ty tz): ");
+            scanf("%f %f %f", &tx, &ty, &tz);
+            for (int i=0; i<4; i++)
+                for (int j=0; j<4; j++)
+                    matrix[i][j]=(i == j) ? 1 : (j == 3 ? (i == 0 ? tx : i == 1 ? ty : i == 2 ? tz : 1) : 0);
+            break;
+        }
+        case 2: {
+            char axis;
+            float angle, rad, c, s;
+            printf("Enter axis (x/y/z): ");
+            scanf(" %c", &axis);
+            printf("Enter angle (degrees): ");
+            scanf("%f", &angle);
+            rad=angle*M_PI / 180.0;
+            c=cos(rad); s=sin(rad);
+            for (int i=0; i<4; i++)
+                for (int j=0; j<4; j++)
+                    matrix[i][j]=(i == j) ? 1 : 0;
+            switch (axis) {
+                case 'x':
+                    matrix[1][1]=c; matrix[1][2]=-s;
+                    matrix[2][1]=s; matrix[2][2]=c;
+                    break;
+                case 'y':
+                    matrix[0][0]=c; matrix[0][2]=s;
+                    matrix[2][0]=-s; matrix[2][2]=c;
+                    break;
+                case 'z':
+                    matrix[0][0]=c; matrix[0][1]=-s;
+                    matrix[1][0]=s; matrix[1][1]=c;
+                    break;
+            }
+            break;
+        }
+        case 3: {
+            float sx, sy, sz;
+            printf("Enter scaling factors (sx sy sz): ");
+            scanf("%f %f %f", &sx, &sy, &sz);
+            for (int i=0; i<4; i++)
+                for (int j=0; j<4; j++)
+                    matrix[i][j]=(i == j) ? (i == 0 ? sx : i == 1 ? sy : i == 2 ? sz : 1) : 0;
+            break;
+        }
+        case 4: {
+            char axis;
+            printf("Enter axis (x/y/z): ");
+            scanf(" %c", &axis);
+            for (int i=0; i<4; i++)
+                for (int j=0; j<4; j++)
+                    matrix[i][j]=(i == j) ? (i == (axis == 'x' ? 0 : axis == 'y' ? 1 : 2) ? -1 : 1) : 0;
+            break;
+        }
+        case 5: {
+            char axis;
+            float sh, sv;
+            printf("Enter axis (x/y/z): ");
+            scanf(" %c", &axis);
+            printf("Enter shearing factors (sh sv): ");
+            scanf("%f %f", &sh, &sv);
+            
+            for (int i=0; i<4; i++)
+                for (int j=0; j<4; j++)
+                    matrix[i][j]=(i == j) ? 1 : 0;
+            
+            switch (axis) {
+                case 'x': matrix[0][1]=sh; matrix[0][2]=sv; break;
+                case 'y': matrix[1][0]=sh; matrix[1][2]=sv; break;
+                case 'z': matrix[2][0]=sh; matrix[2][1]=sv; break;
+            }
+            break;
+        }
+    }
+}
+
+int main() {
+    int gd=DETECT, gm;
+    initgraph(&gd, &gm, NULL);
+    drawCuboid(original, WHITE);
+    int choice;
+    printf("1. Translation\n2. Rotation\n3. Scaling\n4. Reflection\n5. Shearing\nChoice: ");
+    scanf("%d", &choice);
+    float matrix[4][4]={0};
+    createTransform(choice, matrix);
+    Point3D transformed[8];
+    for (int i=0; i<8; i++) {
+        transformed[i]=original[i];
+        applyTransform(&transformed[i], matrix);
+    }
+    drawCuboid(transformed, RED);
+    getch();
+    closegraph();
+    return 0;
+}
